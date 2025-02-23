@@ -26,7 +26,7 @@ def hw_connection_loop():
 def get_hw_connections():
 
     record_hw = 'hw:CARD=Rx,DEV=0'
-    play_hw = 'hw:CARD=Device,DEV=0'
+    l_play_hw = ['hw:CARD=Device,DEV=0', 'hw:CARD=Audio,DEV=0']
 
     cmd = 'arecord', '-L'
     record_output = subprocess.check_output(cmd, encoding='utf-8')
@@ -37,7 +37,11 @@ def get_hw_connections():
 
     cmd = 'aplay', '-L'
     play_output = subprocess.check_output(cmd, encoding='utf-8')
-    if not play_hw in play_output:
+    play_hw = None
+    for play_hw in l_play_hw:
+        if play_hw in play_output:
+            break
+    if not play_hw:
         print('no play device.')
         return None
     print('found', play_hw)
