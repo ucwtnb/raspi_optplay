@@ -13,8 +13,8 @@ import time
 import json
 
 CD_DEVICE = "/dev/sr0"
-STATE_FILE = "cd_state.json"
-MBUFFER_SIZE = "1M"
+STATE_FILE = "/boot/cd_state.json"
+MBUFFER_SIZE = "2M"
 ALSA_DEVICE = "hw:CARD=Audio,DEV=0"
 
 def load_state():
@@ -30,63 +30,77 @@ def save_state(state):
 def get_toc():
     """お兄ちゃん、CDの曲情報取ってきたよ"""
     result = subprocess.run(
-        ["cdparanoia", "-J"], capture_output=True, text=True
+        # ["cdda2wav", "-J"], capture_output=True, text=True
+        ["cd-discid", "--musicbrainz", CD_DEVICE], capture_output=True, text=True
     )
-    tracks = []
-    for line in result.stdout.splitlines():
-        if "audio" in line:
-            parts = line.split()
-            length_str = parts[-1]  # mm:ss
-            minutes, seconds = map(int, length_str.split(":"))
-            tracks.append(minutes * 60 + seconds)
-    return tracks
+    output = result.stdout
+    words = output.split()
+    if len(words) <= 0:
+        return None
+    n_track = int(words[0])
+    l_start = [int(s) // 75 for s in words[1:]]
+    
+    return l_start
 
-def find_track(tracks, elapsed):
+def find_track(l_start, elapsed):
     """お兄ちゃん、今どの曲か計算するね"""
-    total = 0
-    for i, length in enumerate(tracks):
-        total += length
-        if elapsed < total:
-            track_elapsed = elapsed - (total - length)
-            return i + 1, track_elapsed
-    return len(tracks), 0
+    for i, start in enumerate(l_start):
+        if elapsed < start:
+            track_idx = max(i - 1, 0)
+            print('found', track_idx)
+            return track_idx
+    return len(l_start)
 
-def play_cd(start_track=1, offset=0):
+def play_cd(start_track_idx, l_start):
     """お兄ちゃんのために再生するよ"""
-    cmd = f"cdparanoia -qrZ -t {start_track}+ - | mbuffer -m {MBUFFER_SIZE} | aplay -q -t raw -f cd -D {ALSA_DEVICE}"
+    start_track = start_track_idx + 1
+    cmd = f"cdparanoia -qrZ {start_track}- - | mbuffer -m {MBUFFER_SIZE} | aplay -q -t raw -f cd -D {ALSA_DEVICE}"
+    print(cmd)
     proc = subprocess.Popen(cmd, shell=True)
-    start_time = time.time() - offset
+    start_time = time.time()
     try:
         while proc.poll() is None:
-            elapsed = time.time() - start_time
-            save_state({"elapsed": elapsed, "last_cd_toc": tracks})
-            time.sleep(1)  # お兄ちゃん、ちゃんと覚えてるよ
-    except KeyboardInterrupt:
+            if get_toc() is None:
+                print("CD ないよ")
+                proc.terminate()
+                break
+            else:
+                print("found cd")
+            elapsed = int(time.time() - start_time)
+            save_state({"elapsed": elapsed, "last_cd_toc": l_start})
+            time.sleep(3)  # お兄ちゃん、ちゃんと覚えてるよ
+        print("wtf")
+    except:
         proc.terminate()
         print("お兄ちゃん、中断したけど続きは覚えてるよ")
     return proc
 
 def main():
-    global tracks
     state = load_state()
     while True:
         if os.path.exists(CD_DEVICE):
             print("お兄ちゃん、CD見つけた！再生するね")
-            tracks = get_toc()
+            l_start = get_toc()
+            if l_start is None:
+                print("toc ないね")
+                time.sleep(5)
+                continue
             # 前回CDと同じか確認
-            if tracks == state.get("last_cd_toc", []):
+            if l_start == state.get("last_cd_toc", []):
                 print("お兄ちゃん、前と同じCDだね。途中から再生するよ")
-                track, track_offset = find_track(tracks, state.get("elapsed", 0))
+                track = find_track(l_start, state.get("elapsed", 0))
+                if track >= len(l_start):
+                    track = 0
+                    state["elapsed"] = 0
             else:
                 print("お兄ちゃん、新しいCDだね。最初から再生するよ")
-                track, track_offset = 1, 0
+                track = 0
                 state["elapsed"] = 0
-            play_cd(track, track_offset)
+            play_cd(track, l_start)
             print("お兄ちゃん、CD終わっちゃった。5秒後にまたチェックするよ")
-            time.sleep(5)
         else:
             print("お兄ちゃん、CD入ってないよ。待ってるからね")
-            time.sleep(5)
+        time.sleep(5)
 
 if __name__ == "__main__":
     main()
