@@ -15,6 +15,7 @@ import json
 CD_DEVICE = "/dev/sr0"
 STATE_FILE = "/boot/cd_state.json"
 MBUFFER_SIZE = "2M"
+# MBUFFER_SIZE = "512K"
 ALSA_DEVICE = "hw:CARD=Audio,DEV=0"
 
 def load_state():
@@ -63,6 +64,7 @@ def play_cd(start_track_idx, l_start):
         proc = subprocess.Popen(cmd, stdin=si, stdout=subprocess.PIPE)
         l_proc.append(proc)
     start_time = time.time()
+    start_offset = l_start[start_track_idx]
     cdp_proc = l_proc[0]
     try:
         while cdp_proc.poll() is None:
@@ -71,7 +73,7 @@ def play_cd(start_track_idx, l_start):
                 for p in l_proc[::-1]:
                     p.terminate()
                 break
-            elapsed = int(time.time() - start_time)
+            elapsed = int(time.time() - start_time) + start_offset
             save_state({"elapsed": elapsed, "last_cd_toc": l_start})
             time.sleep(3)  # お兄ちゃん、ちゃんと覚えてるよ
         print("wtf")
@@ -100,14 +102,11 @@ def main():
                 if track >= len(l_start) or (l_start[-1] - elapsed < 5):
                     # reached to end of cd
                     track = 0
-                    state["elapsed"] = 0
-                else:
-                    state['elapsed'] = l_start[track]
             else:
                 print("お兄ちゃん、新しいCDだね。最初から再生するよ")
                 track = 0
-                state["elapsed"] = 0
             play_cd(track, l_start)
+            state = load_state()
             print("お兄ちゃん、CD終わっちゃった。5秒後にまたチェックするよ")
         else:
             print("お兄ちゃん、CD入ってないよ。待ってるからね")
