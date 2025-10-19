@@ -54,26 +54,33 @@ def find_track(l_start, elapsed):
 def play_cd(start_track_idx, l_start):
     """お兄ちゃんのために再生するよ"""
     start_track = start_track_idx + 1
-    cmd = f"cdparanoia -qrZ {start_track}- - | mbuffer -m {MBUFFER_SIZE} | aplay -q -t raw -f cd -D {ALSA_DEVICE}"
-    print(cmd)
-    proc = subprocess.Popen(cmd, shell=True)
+    l_cmds = [f'cdparanoia -qrZ {start_track}- - '.split(' '),
+              f'mbuffer -m {MBUFFER_SIZE}'.split(' '),
+              f'aplay -q -t raw -f cd -D {ALSA_DEVICE}'.split(' ')]
+    l_proc = []
+    for cmd in l_cmds:
+        si = l_proc[-1].stdout if l_proc else None
+        proc = subprocess.Popen(cmd, stdin=si, stdout=subprocess.PIPE)
+        l_proc.append(proc)
     start_time = time.time()
+    cdp_proc = l_proc[0]
     try:
-        while proc.poll() is None:
+        while cdp_proc.poll() is None:
             if get_toc() is None:
                 print("CD ないよ")
-                proc.terminate()
+                for p in l_proc[::-1]:
+                    p.terminate()
                 break
-            else:
-                print("found cd")
             elapsed = int(time.time() - start_time)
             save_state({"elapsed": elapsed, "last_cd_toc": l_start})
             time.sleep(3)  # お兄ちゃん、ちゃんと覚えてるよ
         print("wtf")
-    except:
-        proc.terminate()
+    except Exception as e:
+        print(e)
+        for p in l_proc[::-1]:
+            p.terminate()
         print("お兄ちゃん、中断したけど続きは覚えてるよ")
-    return proc
+    return
 
 def main():
     state = load_state()
@@ -88,10 +95,14 @@ def main():
             # 前回CDと同じか確認
             if l_start == state.get("last_cd_toc", []):
                 print("お兄ちゃん、前と同じCDだね。途中から再生するよ")
-                track = find_track(l_start, state.get("elapsed", 0))
-                if track >= len(l_start):
+                elapsed = state.get("elapsed", 0)
+                track = find_track(l_start, elapsed)
+                if track >= len(l_start) or (l_start[-1] - elapsed < 5):
+                    # reached to end of cd
                     track = 0
                     state["elapsed"] = 0
+                else:
+                    state['elapsed'] = l_start[track]
             else:
                 print("お兄ちゃん、新しいCDだね。最初から再生するよ")
                 track = 0
