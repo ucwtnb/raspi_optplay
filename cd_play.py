@@ -15,6 +15,7 @@ import json
 CD_DEVICE = "/dev/sr0"
 STATE_FILE = "/boot/cd_state.json"
 MBUFFER_SIZE = "2M"
+MBUFFER_SEC = 2000000 / (44100 * 4 * 2)
 # MBUFFER_SIZE = "512K"
 ALSA_DEVICE = "hw:CARD=Audio,DEV=0"
 
@@ -66,22 +67,31 @@ def play_cd(start_track_idx, l_start):
     start_time = time.time()
     start_offset = l_start[start_track_idx]
     cdp_proc = l_proc[0]
+    aplay_proc = l_proc[-1]
     try:
         while cdp_proc.poll() is None:
             if get_toc() is None:
                 print("CD ないよ")
-                for p in l_proc[::-1]:
-                    p.terminate()
+                raise Exception()
+                break
+            elif aplay_proc.poll() is not None:
+                print("aplay失敗")
+                raise Exception()
                 break
             elapsed = int(time.time() - start_time) + start_offset
             save_state({"elapsed": elapsed, "last_cd_toc": l_start})
             time.sleep(3)  # お兄ちゃん、ちゃんと覚えてるよ
-        print("wtf")
+        print("play exited normally")
+        print("waiting buffer flushed")
+        time.sleep(MBUFFER_SEC)
+        elapsed = int(time.time() - start_time) + start_offset
+        save_state({"elapsed": elapsed, "last_cd_toc": l_start})
     except Exception as e:
         print(e)
-        for p in l_proc[::-1]:
-            p.terminate()
         print("お兄ちゃん、中断したけど続きは覚えてるよ")
+    for p in l_proc[::-1]:
+        if p.poll() is None:
+            p.terminate()
     return
 
 def main():
