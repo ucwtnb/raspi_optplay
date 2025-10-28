@@ -19,13 +19,18 @@ MBUFFER_SEC = 2000000 / (44100 * 4 * 2)
 # MBUFFER_SIZE = "512K"
 ALSA_DEVICE = "hw:CARD=Audio,DEV=0"
 
+# {"elapsed": 168635, "last_cd_toc": [2, 390, 433, 801, 1113, 1405, 1750, 2112, 2558, 2816, 2954, 3369, 3729, 4019]}
+
 def load_state():
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            return json.load(f)
+    for i in range(10):
+        if os.path.exists(STATE_FILE):
+            with open(STATE_FILE, "r") as f:
+                return json.load(f)
+        time.sleep(1)
     return {"elapsed": 0, "last_cd_toc": []}
 
 def save_state(state):
+    # print('save_state', state)
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
@@ -112,6 +117,7 @@ def main():
                 if track >= len(l_start) or (l_start[-1] - elapsed < 5):
                     # reached to end of cd
                     track = 0
+                    print('reached to end of cd.')
             else:
                 print("お兄ちゃん、新しいCDだね。最初から再生するよ")
                 track = 0
