@@ -88,7 +88,7 @@ def play_cd(start_track_idx, l_start):
             time.sleep(3)  # お兄ちゃん、ちゃんと覚えてるよ
         print("play exited normally")
         print("waiting buffer flushed")
-        time.sleep(MBUFFER_SEC)
+        time.sleep(MBUFFER_SEC + 3.0)
         elapsed = int(time.time() - start_time) + start_offset
         save_state({"elapsed": elapsed, "last_cd_toc": l_start})
     except Exception as e:
@@ -100,6 +100,7 @@ def play_cd(start_track_idx, l_start):
     return
 
 def main():
+    time.sleep(5)
     state = load_state()
     while True:
         if os.path.exists(CD_DEVICE):
