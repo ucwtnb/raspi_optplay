@@ -56,6 +56,15 @@ def play(hw_info):
     assert hw_info is not None
     record_devname, play_devname = hw_info
 
+    
+    # check no input
+    cmd = 'arecord', '-f' 'cd', '-D', record_devname, '-d', '1'
+    print(' '.join(cmd))
+    res = subprocess.run(cmd, stdout=subprocess.DEVNULL)
+    if res.returncode != 0:
+        print('no input?')
+        return
+        
     try:
         cmd = ['arecord', '-f', 'cd', '-D', record_devname]
         #cmd = ['arecord', '-f', 'S24_3LE', '-c', '2', '-r', '44100', '-D', record_devname]
