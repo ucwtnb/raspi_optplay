@@ -115,13 +115,33 @@ def play(hw_info):
                 stderr=subprocess.PIPE
             )
         print(' '.join(cmd))
-
+        
+        while True:
+            if arecord_process.poll() is not None:
+                raise Exception("arecord error")
+            if aplay_process.poll() is not None:
+                raise Exception("aplay error")
+            if sox_process is not None and sox_process.poll() is not None:
+                raise Exception("sox error")
+            time.sleep(1)
+            
+    except Exception as e:
+        print(e)
+        if aplay_process.poll() is None:
+            aplay_process.terminate()
+            print('aplay_process.terminate()')
+            
+        if sox_process is not None and sox_process.poll() is None:
+            sox_process.terminate()
+            print('sox_process.terminate()')
+            
+        if arecord_process.poll() is None:
+            arecord_process.terminate()
+            print('arecord_process.terminate()')
+        
         arecord_process.stdout.close()
-        arecord_process.wait()
         if sox_process is not None:
             sox_process.stdout.close()
-            sox_process.wait()
-        aplay_process.wait()
 
         stdout_data, stderr_data = aplay_process.communicate()
 
@@ -132,8 +152,7 @@ def play(hw_info):
         if stderr_data:
             print("Standard Error:")
             print(stderr_data.decode())
-    except Exception as e:
-        raise e
+            
         return
 
 if __name__ == '__main__':
