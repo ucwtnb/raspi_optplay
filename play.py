@@ -8,6 +8,9 @@ import subprocess
 # run arecord and aplay
 # if got error
 # retry all
+
+MBUFFER_SIZE = "2M"
+
 def main():
 
     while True:
@@ -69,6 +72,7 @@ def play(hw_info):
         return
         
     try:
+        l_processes = []
         cmd = ['arecord', '-f', 'cd', '-D', record_devname]
         #cmd = ['arecord', '-f', 'S24_3LE', '-c', '2', '-r', '44100', '-D', record_devname]
         print(' '.join(cmd))
@@ -77,7 +81,16 @@ def play(hw_info):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-        prev_process = arecord_process
+        l_processes.append(arecord_process)
+
+        cmd = f'mbuffer -m {MBUFFER_SIZE}'.split(' ')
+        buffer_process = subprocess.Popen(
+            cmd,
+            stdin=l_processes[-1].stdout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        l_processes.append(buffer_process)
 
         if play_devname in g_hw_add_info:
             info = g_hw_add_info[play_devname]
@@ -92,11 +105,11 @@ def play(hw_info):
             #       '-e', 'signed', '-b', '32', '-']
             sox_process = subprocess.Popen(
                 cmd,
-                stdin=prev_process.stdout,
+                stdin=l_processes[-1].stdout,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            prev_process = sox_process
+            l_processes.append(sox_process)
             print(' '.join(cmd))
         else:
             sox_process = None
@@ -110,48 +123,35 @@ def play(hw_info):
                    '-D', play_devname]
         aplay_process = subprocess.Popen(
                 cmd,
-                stdin=prev_process.stdout,
+                stdin=l_processes[-1].stdout,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
+        l_processes.append(aplay_process)
         print(' '.join(cmd))
         
         while True:
-            if arecord_process.poll() is not None:
-                raise Exception("arecord error")
-            if aplay_process.poll() is not None:
-                raise Exception("aplay error")
-            if sox_process is not None and sox_process.poll() is not None:
-                raise Exception("sox error")
+            for idx, process in enumerate(l_processes):
+                if process.poll() is not None:
+                    raise Exception(f'process{idx} error')
             time.sleep(1)
             
     except Exception as e:
         print(e)
-        if aplay_process.poll() is None:
-            aplay_process.terminate()
-            print('aplay_process.terminate()')
-            
-        if sox_process is not None and sox_process.poll() is None:
-            sox_process.terminate()
-            print('sox_process.terminate()')
-            
-        if arecord_process.poll() is None:
-            arecord_process.terminate()
-            print('arecord_process.terminate()')
-        
-        arecord_process.stdout.close()
-        if sox_process is not None:
-            sox_process.stdout.close()
+        for process in reversed(l_processes):
+            if process.poll() is None:
+                process.stdout.close()
+                process.terminate()
 
-        stdout_data, stderr_data = aplay_process.communicate()
+        # stdout_data, stderr_data = aplay_process.communicate()
 
-        if stdout_data:
-            print("Standard Output:")
-            print(stdout_data.decode())
+        # if stdout_data:
+        #     print("Standard Output:")
+        #     print(stdout_data.decode())
 
-        if stderr_data:
-            print("Standard Error:")
-            print(stderr_data.decode())
+        # if stderr_data:
+        #     print("Standard Error:")
+        #     print(stderr_data.decode())
             
         return
 
