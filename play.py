@@ -83,14 +83,14 @@ def play(hw_info):
             )
         l_processes.append(arecord_process)
 
-        cmd = f'mbuffer -m {MBUFFER_SIZE}'.split(' ')
-        buffer_process = subprocess.Popen(
-            cmd,
-            stdin=l_processes[-1].stdout,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        l_processes.append(buffer_process)
+        # cmd = f'mbuffer -m {MBUFFER_SIZE}'.split(' ')
+        # buffer_process = subprocess.Popen(
+        #     cmd,
+        #     stdin=l_processes[-1].stdout,
+        #     stdout=subprocess.PIPE,
+        #     stderr=subprocess.PIPE
+        # )
+        # l_processes.append(buffer_process)
 
         if play_devname in g_hw_add_info:
             info = g_hw_add_info[play_devname]
