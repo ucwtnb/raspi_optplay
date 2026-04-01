@@ -28,10 +28,15 @@ def hw_connection_loop():
 
 
 g_record_hw = 'hw:CARD=Rx,DEV=0'
-g_l_play_hw = ['hw:CARD=Device,DEV=0', 'hw:CARD=Audio,DEV=0', 'hw:CARD=iD4,DEV=0']
+g_l_play_hw = ['hw:CARD=Device,DEV=0',
+               'hw:CARD=Audio,DEV=0',
+               'hw:CARD=G20,DEV=0',
+               'hw:CARD=iD4,DEV=0',
+]
 g_hw_add_info = {
     'hw:CARD=iD4,DEV=0':{'bit':32, 'format':'S32_LE', 'channel':4, 'vol':1.0},
     'hw:CARD=Audio,DEV=0':{'bit':32, 'format':'S32_LE', 'channel':2, 'vol':0.125},
+    'hw:CARD=G20,DEV=0':{'bit':32, 'format':'S32_LE', 'channel':2, 'vol':0.125}
 }
 
 #arecord -f S16_LE -c 2 -r 44100 -D hw:CARD=Rx,DEV=0 | sox -t raw -r 44100 -e signed -b 16 -c 2 - -t raw -r 44100 -e signed -b 32 -c 4 - | aplay -f S32_LE -c 4 -r 44100 -D hw:CARD=iD4,DEV=0
